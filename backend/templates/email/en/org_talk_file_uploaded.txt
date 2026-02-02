@@ -1,0 +1,10 @@
+﻿Thesis uploaded for talk:
+Speaker: {{.SpeakerFullName}}
+Affiliation: {{.SpeakerAffiliation}}
+City: {{.SpeakerCity}}
+Title: {{.Title}}
+Authors: {{.AuthorsLine}}
+Abstract: {{.Abstract}}
+Type: {{.Kind}}
+Section: {{.Section}}
+File: {{.FileNoteOrURL}}

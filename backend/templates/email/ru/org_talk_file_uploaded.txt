@@ -1,0 +1,10 @@
+﻿Загружены тезисы по докладу:
+Докладчик: {{.SpeakerFullName}}
+Организация: {{.SpeakerAffiliation}}
+Город: {{.SpeakerCity}}
+Название: {{.Title}}
+Авторы: {{.AuthorsLine}}
+Аннотация: {{.Abstract}}
+Вид: {{.Kind}}
+Секция: {{.Section}}
+Файл: {{.FileNoteOrURL}}

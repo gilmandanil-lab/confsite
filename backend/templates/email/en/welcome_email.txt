@@ -1,0 +1,13 @@
+Welcome to the Conference!
+
+Your account has been created successfully.
+
+Now you can:
+- Complete your participant profile
+- Submit papers for the conference
+- View the conference program
+
+If you have any questions, please contact the conference organizers.
+
+---
+This is an automated message. Please do not reply to this email.

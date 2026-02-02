@@ -1,0 +1,3 @@
+﻿Hello!
+Verify your email using this link:
+{{.VerifyURL}}

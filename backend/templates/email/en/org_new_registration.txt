@@ -1,0 +1,5 @@
+﻿New application:
+Full name: {{.FullName}}
+Affiliation: {{.Affiliation}}
+City: {{.City}}
+Email: {{.Email}}
