@@ -55,7 +55,9 @@
     "sectionsTitle": "Секции",
     "section": "Секция",
     "newsTitle": "Закрепленные новости",
-    "noContent": "Контент готовится"
+    "noContent": "Контент готовится",
+    "infoLetterTitle": "Информационное письмо",
+    "infoLetterDownload": "Скачать PDF"
   },
   "conference": {
     "title": "ВСЕРОССИЙСКАЯ (С МЕЖДУНАРОДНЫМ УЧАСТИЕМ) КОНФЕРЕНЦИЯ",

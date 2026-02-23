@@ -55,7 +55,9 @@
     "sectionsTitle": "Sections",
     "section": "Section",
     "newsTitle": "Pinned news",
-    "noContent": "Content is being prepared"
+    "noContent": "Content is being prepared",
+    "infoLetterTitle": "Information Letter",
+    "infoLetterDownload": "Download PDF"
   },
   "conference": {
     "title": "ALL-RUSSIAN (WITH INTERNATIONAL PARTICIPATION) CONFERENCE",

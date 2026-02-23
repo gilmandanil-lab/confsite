@@ -144,20 +144,41 @@ func (s *TalkService) SetFileURL(ctx context.Context, speakerID, talkID uuid.UUI
 }
 
 func (s *TalkService) notifyResponsibles(ctx context.Context, t *domain.Talk, prof *domain.Profile, fileURL string) error {
-	if t.SectionID == nil {
-		return nil
-	}
-	all, err := s.sections.ListResponsibleEmails(ctx)
-	if err != nil {
-		return err
-	}
 	recipients := make([]string, 0, 3)
-	for _, item := range all {
-		if item.SectionID == *t.SectionID {
-			recipients = append(recipients, item.Email)
+	seen := make(map[string]struct{})
+	addRecipient := func(email string) {
+		e := strings.ToLower(strings.TrimSpace(email))
+		if e == "" {
+			return
+		}
+		if _, exists := seen[e]; exists {
+			return
+		}
+		seen[e] = struct{}{}
+		recipients = append(recipients, e)
+	}
+
+	// Primary recipients: section responsibles.
+	if t.SectionID != nil {
+		all, err := s.sections.ListResponsibleEmails(ctx)
+		if err != nil {
+			return err
+		}
+		for _, item := range all {
+			if item.SectionID == *t.SectionID {
+				addRecipient(item.Email)
+			}
+		}
+	}
+
+	// Fallback recipients: organizers from config.
+	if len(recipients) == 0 {
+		for _, org := range s.cfg.OrganizerEmails {
+			addRecipient(org)
 		}
 	}
 	if len(recipients) == 0 {
+		println("Warning: no recipients found for talk notification:", t.ID.String())
 		return nil
 	}
 
@@ -189,7 +210,9 @@ func (s *TalkService) notifyResponsibles(ctx context.Context, t *domain.Talk, pr
 	)
 
 	for _, to := range recipients {
-		_ = s.mailer.Send(ctx, to, subject, htmlBody, textBody)
+		if err := s.mailer.Send(ctx, to, subject, htmlBody, textBody); err != nil {
+			println("Warning: failed to send talk notification email to", to, ":", err.Error())
+		}
 	}
 	return nil
 }

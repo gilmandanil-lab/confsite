@@ -18,6 +18,21 @@ export default function Home() {
 
   return (
     <div className="space-y-8">
+      <section className="rounded-xl border border-brand-200 bg-brand-50 p-4 dark:border-brand-700/60 dark:bg-brand-900/20">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{t("home.infoLetterTitle")}</h2>
+          <a
+            href="/docs/information-letter-fntp-2026.pdf"
+            download
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-800 dark:bg-brand-600 dark:hover:bg-brand-500"
+          >
+            {t("home.infoLetterDownload")}
+          </a>
+        </div>
+      </section>
+
       <ConferenceInfo />
 
       <div className="space-y-3">
