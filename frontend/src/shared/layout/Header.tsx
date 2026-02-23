@@ -12,7 +12,6 @@ const NAV_LINKS = [
   { to: "/fee", label: "nav.fee" },
   { to: "/news", label: "nav.news" },
   { to: "/participants", label: "nav.participants" },
-  { to: "/contacts", label: "nav.contacts" },
 ];
 
 export function Header() {
@@ -26,13 +25,7 @@ export function Header() {
     <header className="sticky top-0 z-30 border-b border-brand-200/20 bg-white/95 shadow-lg backdrop-blur-md dark:border-brand-900/20 dark:bg-slate-950/95 dark:shadow-2xl">
       <div className="mx-auto flex items-center justify-between gap-4 px-4 py-4 lg:px-8">
         <Link to="/" className="flex shrink-0 items-center gap-3 font-bold">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-brand text-xs font-bold text-white shadow-lg shadow-brand-600/40 dark:shadow-brand-500/40">
-            CS
-          </div>
-          <div className="hidden leading-tight sm:block">
-            <div className="text-xs font-semibold uppercase tracking-widest text-brand-600 dark:text-brand-400">Summit</div>
-            <div className="text-base font-bold text-slate-900 dark:text-white">Conference</div>
-          </div>
+          <img src="/logo.svg" alt={t("app.title")} className="h-11 w-auto object-contain sm:h-12" />
         </Link>
         <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto scrollbar-hide">
           {NAV_LINKS.map((item) => {

@@ -55,6 +55,15 @@ CREATE TABLE sections (
   sort_order int NOT NULL DEFAULT 0
 );
 
+CREATE TABLE section_responsibles (
+  section_id uuid NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+  email text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (section_id, email)
+);
+
+CREATE UNIQUE INDEX uq_section_responsibles_lower_email ON section_responsibles(section_id, lower(email));
+
 CREATE TABLE talks (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   speaker_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -64,6 +73,8 @@ CREATE TABLE talks (
   abstract text NOT NULL CHECK (char_length(abstract) BETWEEN 250 AND 350),
   kind text NOT NULL CHECK (kind IN ('PLENARY','ORAL','POSTER')),
   authors jsonb NOT NULL,
+  status text NOT NULL DEFAULT 'WAITING' CHECK (status IN ('WAITING','APPROVED','REJECTED')),
+  reviewed_at timestamptz,
   schedule_time timestamptz,
   file_url text,
   created_at timestamptz NOT NULL DEFAULT now()

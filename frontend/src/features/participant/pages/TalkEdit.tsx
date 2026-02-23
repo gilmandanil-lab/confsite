@@ -12,6 +12,7 @@ import {
   uploadTalkFile,
   fetchPublicDocumentTemplates,
   downloadDocumentTemplate,
+  uploadSignedDocument,
 } from "../../../shared/api";
 import { FormField } from "../../../shared/ui/FormField";
 
@@ -30,8 +31,9 @@ export default function TalkEdit({ mode }: { mode: "create" | "edit" }) {
   const navigate = useNavigate();
   const [formError, setFormError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedLicenseFile, setSelectedLicenseFile] = useState<File | null>(null);
   const [currentFileUrl, setCurrentFileUrl] = useState<string | null>(null);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [talkFileUploadSuccess, setTalkFileUploadSuccess] = useState(false);
   const [licenseAgreementUploaded, setLicenseAgreementUploaded] = useState(false);
 
   const documentsQuery = useQuery({
@@ -97,23 +99,37 @@ export default function TalkEdit({ mode }: { mode: "create" | "edit" }) {
     onSuccess: () => navigate("/cabinet/talks"),
   });
 
-  const uploadMutation = useMutation({
+  const uploadTalkMutation = useMutation({
     mutationFn: ({ talkId, file }: { talkId: string; file: File }) => uploadTalkFile(talkId, file),
     onSuccess: (data) => {
       setCurrentFileUrl(data.url);
       setSelectedFile(null);
-      setUploadSuccess(true);
+      setTalkFileUploadSuccess(true);
       // Hide success message after 3 seconds
-      setTimeout(() => setUploadSuccess(false), 3000);
+      setTimeout(() => setTalkFileUploadSuccess(false), 3000);
     },
     onError: (error) => {
       console.error("File upload error:", error);
-      alert(t("talks.uploadError"));
+    },
+  });
+
+  const uploadLicenseMutation = useMutation({
+    mutationFn: ({ talkId, file }: { talkId: string; file: File }) => uploadSignedDocument(file, "LICENSE_AGREEMENT", talkId),
+    onSuccess: () => {
+      setLicenseAgreementUploaded(true);
+      setSelectedLicenseFile(null);
+    },
+    onError: (error) => {
+      console.error("License agreement upload error:", error);
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
     setFormError(null);
+    if (mode === "create" && (!selectedFile || !selectedLicenseFile)) {
+      setFormError("Для создания доклада необходимо прикрепить файл тезисов и лицензионный договор.");
+      return;
+    }
     if (data.abstract.length < 250 || data.abstract.length > 350) {
       setFormError(t("talks.abstractRule"));
       return;
@@ -134,7 +150,10 @@ export default function TalkEdit({ mode }: { mode: "create" | "edit" }) {
         });
         // if user attached a file during creation, upload it
         if (selectedFile && res?.id) {
-          await uploadMutation.mutateAsync({ talkId: res.id, file: selectedFile });
+          await uploadTalkMutation.mutateAsync({ talkId: res.id, file: selectedFile });
+        }
+        if (selectedLicenseFile && res?.id) {
+          await uploadLicenseMutation.mutateAsync({ talkId: res.id, file: selectedLicenseFile });
         }
         navigate("/cabinet/talks");
       } else if (id) {
@@ -156,30 +175,53 @@ export default function TalkEdit({ mode }: { mode: "create" | "edit" }) {
   });
 
   const talkLimitReached = useMemo(() => (talksQuery.data?.length || 0) >= 3, [talksQuery.data]);
+  const createFilesMissing = mode === "create" && (!selectedFile || !selectedLicenseFile);
 
-  const handleFile = async (file?: File) => {
-    if (!file || !id) return;
+  const validateFile = (file?: File, maxMb = 10) => {
+    if (!file) return false;
     const allowed = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
     if (!allowed.includes(file.type)) {
       alert(t("registration.badFile"));
-      return;
+      return false;
     }
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > maxMb * 1024 * 1024) {
       alert(t("talks.fileTooLarge"));
-      return;
+      return false;
     }
-    await uploadMutation.mutateAsync({ talkId: id, file });
-    alert(t("talks.fileUploaded"));
+    return true;
+  };
+
+  const handleTalkFileUpload = async (file?: File) => {
+    if (!file || !id) return;
+    if (!validateFile(file, 10)) return;
+    await uploadTalkMutation.mutateAsync({ talkId: id, file });
+  };
+
+  const handleLicenseFileUpload = async (file?: File) => {
+    if (!file || !id) return;
+    if (!validateFile(file, 5)) return;
+    await uploadLicenseMutation.mutateAsync({ talkId: id, file });
   };
 
   const getLicenseTemplate = () => {
     return documentsQuery.data?.find((t) => t.documentType === "LICENSE_AGREEMENT");
   };
 
+  const getAbstractTemplate = () => {
+    return documentsQuery.data?.find((t) => t.documentType === "ABSTRACT_TEMPLATE");
+  };
+
   const handleDownloadLicenseTemplate = () => {
     const template = getLicenseTemplate();
     if (template) {
       downloadDocumentTemplate(template.fileURL, "LICENSE_AGREEMENT.pdf");
+    }
+  };
+
+  const handleDownloadAbstractTemplate = () => {
+    const template = getAbstractTemplate();
+    if (template) {
+      downloadDocumentTemplate(template.fileURL, "ABSTRACT_TEMPLATE.pdf");
     }
   };
 
@@ -286,20 +328,20 @@ export default function TalkEdit({ mode }: { mode: "create" | "edit" }) {
       {formError ? <div className="text-sm text-red-500">{formError}</div> : null}
 
       {/* License Agreement Section */}
-      {mode === "edit" && id && getLicenseTemplate() ? (
-        <div className="space-y-2 border-b border-slate-200 pb-4 dark:border-slate-700">
-          <h3 className="font-semibold text-slate-900 dark:text-white">
-            {t("talks.licenseAgreement") || "License Agreement"}
-          </h3>
-          <div className="rounded-lg border border-dashed border-slate-300 p-4 dark:border-slate-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold text-slate-900 dark:text-white">
-                  {t("talks.licenseAgreementTitle") || "License Agreement for Publication"}
-                </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {t("talks.licenseAgreementHint") || "Upload signed license agreement"}
-                </div>
+      <div className="space-y-2 border-b border-slate-200 pb-4 dark:border-slate-700">
+        <h3 className="font-semibold text-slate-900 dark:text-white">
+          {t("talks.licenseAgreement") || "License Agreement"}
+        </h3>
+        <div className="rounded-lg border border-dashed border-slate-300 p-4 dark:border-slate-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                {t("talks.licenseAgreementTitle") || "License Agreement for Publication"}
+              </div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                {t("talks.licenseAgreementHint") || "Upload signed license agreement"}
+              </div>
+              {getLicenseTemplate() ? (
                 <button
                   type="button"
                   onClick={handleDownloadLicenseTemplate}
@@ -307,36 +349,60 @@ export default function TalkEdit({ mode }: { mode: "create" | "edit" }) {
                 >
                   {t("actions.download")} {t("registration.template")}
                 </button>
-              </div>
-              <label className="cursor-pointer rounded-full bg-brand-700 px-4 py-2 text-sm font-semibold text-white shadow">
-                {t("actions.upload")}
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file && id) {
-                      handleFile(file);
-                      setLicenseAgreementUploaded(true);
-                    }
-                  }}
-                />
-              </label>
+              ) : null}
             </div>
-            {licenseAgreementUploaded ? (
-              <div className="mt-2 text-sm text-emerald-600 dark:text-emerald-200">
-                {t("registration.fileUploaded")}
-              </div>
-            ) : null}
+            <label className="cursor-pointer rounded-full bg-brand-700 px-4 py-2 text-sm font-semibold text-white shadow">
+              {mode === "create" ? t("actions.selectFile") : t("actions.upload")}
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !validateFile(file, 5)) return;
+                  if (mode === "create") {
+                    setSelectedLicenseFile(file);
+                    setLicenseAgreementUploaded(false);
+                    return;
+                  }
+                  if (id) {
+                    handleLicenseFileUpload(file);
+                  }
+                }}
+              />
+            </label>
           </div>
+          {mode === "create" && selectedLicenseFile ? (
+            <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+              {selectedLicenseFile.name}
+            </div>
+          ) : null}
+          {mode === "create" && selectedLicenseFile ? (
+            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {t("talks.fileWillUploadAfterCreate") || "Файл будет загружен после создания доклада"}
+            </div>
+          ) : null}
+          {licenseAgreementUploaded ? (
+            <div className="mt-2 text-sm text-emerald-600 dark:text-emerald-200">
+              {t("registration.fileUploaded")}
+            </div>
+          ) : null}
+          {uploadLicenseMutation.isPending ? (
+            <div className="mt-2 text-sm text-slate-500">{t("actions.loading")}</div>
+          ) : null}
         </div>
-      ) : null}
+      </div>
 
       <div className="flex flex-wrap gap-3">
         <button
           type="submit"
-          disabled={createMutation.isPending || updateMutation.isPending}
+          disabled={
+            createMutation.isPending ||
+            updateMutation.isPending ||
+            uploadLicenseMutation.isPending ||
+            uploadTalkMutation.isPending ||
+            createFilesMissing
+          }
           className="rounded-full bg-brand-700 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-[2px] hover:shadow-xl disabled:opacity-60"
         >
           {mode === "create" ? t("actions.create") : t("actions.save")}
@@ -349,6 +415,11 @@ export default function TalkEdit({ mode }: { mode: "create" | "edit" }) {
           {t("actions.cancel")}
         </button>
       </div>
+      {createFilesMissing ? (
+        <div className="text-sm text-red-500">
+          Для создания доклада прикрепите оба файла: лицензионный договор и файл тезисов.
+        </div>
+      ) : null}
       
       {mode === "create" ? (
         <div className="rounded-lg border border-dashed border-slate-300 p-4 dark:border-slate-700">
@@ -356,6 +427,15 @@ export default function TalkEdit({ mode }: { mode: "create" | "edit" }) {
             <div>
               <div className="text-sm font-semibold text-slate-900 dark:text-white">{t("talks.fileUploadTitle")}</div>
               <div className="text-xs text-slate-500 dark:text-slate-400">{t("talks.fileUploadHint")}</div>
+              {getAbstractTemplate() ? (
+                <button
+                  type="button"
+                  onClick={handleDownloadAbstractTemplate}
+                  className="mt-2 inline-block text-xs text-brand-600 hover:text-brand-700 underline dark:text-brand-400"
+                >
+                  {t("actions.download")} {t("materials.abstractTemplate")}
+                </button>
+              ) : null}
             </div>
             <label className="cursor-pointer rounded-full bg-brand-700 px-4 py-2 text-sm font-semibold text-white shadow">
               {t("actions.selectFile")}
@@ -363,11 +443,20 @@ export default function TalkEdit({ mode }: { mode: "create" | "edit" }) {
                 type="file"
                 accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 className="hidden"
-                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !validateFile(file, 10)) return;
+                  setSelectedFile(file);
+                }}
               />
             </label>
           </div>
           {selectedFile ? <div className="mt-2 text-sm">{selectedFile.name}</div> : null}
+          {selectedFile ? (
+            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {t("talks.fileWillUploadAfterCreate") || "Файл будет загружен после создания доклада"}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -377,6 +466,15 @@ export default function TalkEdit({ mode }: { mode: "create" | "edit" }) {
             <div>
               <div className="text-sm font-semibold text-slate-900 dark:text-white">{t("talks.fileUploadTitle")}</div>
               <div className="text-xs text-slate-500 dark:text-slate-400">{t("talks.fileUploadHint")}</div>
+              {getAbstractTemplate() ? (
+                <button
+                  type="button"
+                  onClick={handleDownloadAbstractTemplate}
+                  className="mt-2 inline-block text-xs text-brand-600 hover:text-brand-700 underline dark:text-brand-400"
+                >
+                  {t("actions.download")} {t("materials.abstractTemplate")}
+                </button>
+              ) : null}
             </div>
             <label className="cursor-pointer rounded-full bg-brand-700 px-4 py-2 text-sm font-semibold text-white shadow">
               {t("actions.upload")}
@@ -384,7 +482,7 @@ export default function TalkEdit({ mode }: { mode: "create" | "edit" }) {
                 type="file"
                 accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 className="hidden"
-                onChange={(e) => handleFile(e.target.files?.[0])}
+                onChange={(e) => handleTalkFileUpload(e.target.files?.[0])}
               />
             </label>
           </div>
@@ -395,9 +493,9 @@ export default function TalkEdit({ mode }: { mode: "create" | "edit" }) {
               </a>
             </div>
           )}
-          {uploadMutation.isPending ? (
+          {uploadTalkMutation.isPending ? (
             <div className="mt-2 text-sm text-slate-500">{t("actions.loading")}</div>
-          ) : uploadSuccess ? (
+          ) : talkFileUploadSuccess ? (
             <div className="mt-2 text-sm text-emerald-600 dark:text-emerald-200">{t("talks.fileUploaded")}</div>
           ) : null}
         </div>

@@ -69,8 +69,38 @@ export function ConferenceInfo() {
                 {t("conference.scientificSecretary")}
               </p>
               <p className="text-slate-600 dark:text-slate-400">
-                {t("conference.kashapovLN")}
+                {t("conference.chebakova")}
               </p>
+            </div>
+            <div>
+              <p className="font-semibold text-slate-700 dark:text-slate-300">
+                {t("conference.members")}
+              </p>
+              <ul className="space-y-1 text-slate-600 dark:text-slate-400">
+                <li>• {t("conference.abdullin")}</li>
+                <li>• {t("conference.akishev")}</li>
+                <li>• {t("conference.aleksandrov")}</li>
+                <li>• {t("conference.buznik")}</li>
+                <li>• {t("conference.vasilevMM")}</li>
+                <li>• {t("conference.vasilyak")}</li>
+                <li>• {t("conference.gadzhiev")}</li>
+                <li>• {t("conference.gaysin")}</li>
+                <li>• {t("conference.golubev")}</li>
+                <li>• {t("conference.zheltukhin")}</li>
+                <li>• {t("conference.koval")}</li>
+                <li>• {t("conference.lelevkin")}</li>
+                <li>• {t("conference.ochkin")}</li>
+                <li>• {t("conference.pominov")}</li>
+                <li>• {t("conference.ramazanov")}</li>
+                <li>• {t("conference.romanova")}</li>
+                <li>• {t("conference.ryzhkov")}</li>
+                <li>• {t("conference.smirnov")}</li>
+                <li>• {t("conference.tarasenko")}</li>
+                <li>• {t("conference.timerkaev")}</li>
+                <li>• {t("conference.titov")}</li>
+                <li>• {t("conference.khomich")}</li>
+                <li>• {t("conference.shaekhov")}</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -106,6 +136,36 @@ export function ConferenceInfo() {
                 {t("conference.chebakova")}
               </p>
             </div>
+            <div>
+              <p className="font-semibold text-slate-700 dark:text-slate-300">
+                {t("conference.members")}
+              </p>
+              <ul className="space-y-1 text-slate-600 dark:text-slate-400">
+                <li>• {t("conference.abdullin")}</li>
+                <li>• {t("conference.akishev")}</li>
+                <li>• {t("conference.aleksandrov")}</li>
+                <li>• {t("conference.buznik")}</li>
+                <li>• {t("conference.vasilevMM")}</li>
+                <li>• {t("conference.vasilyak")}</li>
+                <li>• {t("conference.gadzhiev")}</li>
+                <li>• {t("conference.gaysin")}</li>
+                <li>• {t("conference.golubev")}</li>
+                <li>• {t("conference.zheltukhin")}</li>
+                <li>• {t("conference.koval")}</li>
+                <li>• {t("conference.lelevkin")}</li>
+                <li>• {t("conference.ochkin")}</li>
+                <li>• {t("conference.pominov")}</li>
+                <li>• {t("conference.ramazanov")}</li>
+                <li>• {t("conference.romanova")}</li>
+                <li>• {t("conference.ryzhkov")}</li>
+                <li>• {t("conference.smirnov")}</li>
+                <li>• {t("conference.tarasenko")}</li>
+                <li>• {t("conference.timerkaev")}</li>
+                <li>• {t("conference.titov")}</li>
+                <li>• {t("conference.khomich")}</li>
+                <li>• {t("conference.shaekhov")}</li>
+              </ul>
+            </div>
           </div>
         </div>
 
@@ -119,6 +179,7 @@ export function ConferenceInfo() {
             <li>• {t("conference.akhmetov")}</li>
             <li>• {t("conference.kormushkin")}</li>
             <li>• {t("conference.pekunov")}</li>
+            <li>• {t("conference.kashapovLN")}</li>
           </ul>
         </div>
       </div>
@@ -162,7 +223,7 @@ export function ConferenceInfo() {
       </div>
 
       {/* Contacts */}
-      <div className="card p-8">
+      <div id="contacts" className="card scroll-mt-28 p-8">
         <h3 className="mb-6 text-lg font-bold text-slate-900 dark:text-white">
           {t("conference.contacts")}
         </h3>

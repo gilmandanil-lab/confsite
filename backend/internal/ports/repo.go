@@ -1,4 +1,4 @@
-﻿package ports
+package ports
 
 import (
 	"context"
@@ -45,6 +45,8 @@ type ConsentFileRepo interface {
 type SectionRepo interface {
 	List(ctx context.Context) ([]domain.Section, error)
 	Create(ctx context.Context, titleRu, titleEn string, sortOrder int32) error
+	ListResponsibleEmails(ctx context.Context) ([]domain.SectionResponsibleEmail, error)
+	ReplaceResponsibleEmails(ctx context.Context, sectionID uuid.UUID, emails []string) error
 }
 
 type TalkRepo interface {
@@ -57,6 +59,7 @@ type TalkRepo interface {
 	ListAdmin(ctx context.Context, sectionID *uuid.UUID, onlyPlenary bool) ([]domain.AdminTalkRow, error)
 	UpdateSchedule(ctx context.Context, talkID uuid.UUID, sectionID *uuid.UUID, scheduleTime *time.Time) error
 	UpdateFile(ctx context.Context, talkID uuid.UUID, fileURL string) error
+	SetStatus(ctx context.Context, talkID uuid.UUID, status domain.TalkStatus) error
 }
 
 type PageRepo interface {
@@ -106,8 +109,8 @@ type DocumentTemplate struct {
 	MimeType     *string
 	Version      int
 	IsActive     bool
-	CreatedAt    string
-	UpdatedAt    string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 type SignedDocument struct {
@@ -118,5 +121,5 @@ type SignedDocument struct {
 	FileURL      string
 	FileSize     *int64
 	MimeType     *string
-	UploadedAt   string
+	UploadedAt   time.Time
 }

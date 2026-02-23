@@ -1,4 +1,4 @@
-﻿package http
+package http
 
 import (
 	"net/http"
@@ -106,6 +106,12 @@ func PublicProgram(t ports.TalkRepo) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
 			return
 		}
-		c.JSON(http.StatusOK, rows)
+		out := make([]any, 0, len(rows))
+		for _, row := range rows {
+			if row.Status == "APPROVED" {
+				out = append(out, row)
+			}
+		}
+		c.JSON(http.StatusOK, out)
 	}
 }

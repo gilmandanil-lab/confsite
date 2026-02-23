@@ -1,8 +1,9 @@
-﻿package config
+package config
 
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -37,12 +38,13 @@ type StorageConfig struct {
 }
 
 type Config struct {
-	Env     string
-	AppURL  string
-	DB      DBConfig
-	JWT     JWTConfig
-	SMTP    SMTPConfig
-	Storage StorageConfig
+	Env             string
+	AppURL          string
+	DB              DBConfig
+	JWT             JWTConfig
+	SMTP            SMTPConfig
+	Storage         StorageConfig
+	OrganizerEmails []string
 }
 
 func Load() Config {
@@ -78,5 +80,22 @@ func Load() Config {
 			S3Secret:   os.Getenv("S3_SECRET_KEY"),
 			S3Region:   os.Getenv("S3_REGION"),
 		},
+		OrganizerEmails: splitCSVEmails(os.Getenv("ORGANIZER_EMAILS")),
 	}
+}
+
+func splitCSVEmails(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return []string{}
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		email := strings.ToLower(strings.TrimSpace(p))
+		if email == "" {
+			continue
+		}
+		out = append(out, email)
+	}
+	return out
 }

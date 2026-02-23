@@ -19,12 +19,19 @@ func AdminUploadDocumentTemplate(st ports.Storage, docRepo ports.DocumentsRepo) 
 	return func(c *gin.Context) {
 		docType := c.PostForm("type")
 		if docType == "" {
+			// Backward-compatible alias used by frontend.
+			docType = c.PostForm("document_type")
+		}
+		if docType == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "type required"})
 			return
 		}
 
 		// Validate document type
-		if docType != "CONSENT_DATA_PROCESSING" && docType != "CONSENT_DATA_TRANSFER" && docType != "LICENSE_AGREEMENT" {
+		if docType != "CONSENT_DATA_PROCESSING" &&
+			docType != "CONSENT_DATA_TRANSFER" &&
+			docType != "LICENSE_AGREEMENT" &&
+			docType != "ABSTRACT_TEMPLATE" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid document type"})
 			return
 		}
@@ -101,6 +108,10 @@ func UploadSignedDocument(st ports.Storage, docRepo ports.DocumentsRepo) gin.Han
 		uid := c.MustGet(middleware.CtxUserIDKey).(uuid.UUID)
 
 		docType := c.PostForm("type")
+		if docType == "" {
+			// Backward-compatible alias used by frontend.
+			docType = c.PostForm("document_type")
+		}
 		if docType == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "type required"})
 			return

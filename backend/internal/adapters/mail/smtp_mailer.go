@@ -1,8 +1,8 @@
-﻿package mail
+package mail
 
 import (
-	"crypto/tls"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/smtp"
@@ -24,67 +24,81 @@ func NewSMTPMailer(host string, port int, from, user, pass string) ports.Mailer 
 }
 
 func (m *SMTPMailer) Send(ctx context.Context, to, subject, html, text string) error {
+	_ = ctx // do not bind SMTP lifetime to HTTP request context
+
+	if m.host == "" || m.port == 0 || m.from == "" {
+		return fmt.Errorf("smtp is not configured")
+	}
+	if text == "" {
+		text = html
+	}
+
 	msg := []byte(fmt.Sprintf(
-		"From: %s\r\nTo: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n%s",
+		"From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n%s",
 		m.from, to, subject, text,
 	))
 	addr := fmt.Sprintf("%s:%d", m.host, m.port)
-	auth := smtp.PlainAuth("", m.user, m.pass, m.host)
 
-	// Ignore incoming context - use background with generous timeout for async email sending
-	// This is necessary because the incoming context may have short deadlines
+	// Keep bounded deadline for SMTP operations even when caller provides no deadline.
 	bgCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	// Create a custom dialer with generous timeout for SMTP operations
-	// DNS resolution + TCP dial + TLS handshake can take time
 	dialer := &net.Dialer{
 		Timeout:   60 * time.Second,
 		KeepAlive: 15 * time.Second,
-		DualStack: true,
 	}
 
-	// Create TLS connection for secure SMTP (port 465)
-	tlsConfig := &tls.Config{
-		ServerName: m.host,
+	var auth smtp.Auth
+	if m.user != "" && m.pass != "" {
+		auth = smtp.PlainAuth("", m.user, m.pass, m.host)
 	}
 
-	// Perform dial in the background context
-	dialDone := make(chan error, 1)
+	var client *smtp.Client
 	var conn net.Conn
-	go func() {
-		var err error
-		conn, err = tls.DialWithDialer(dialer, "tcp", addr, tlsConfig)
-		dialDone <- err
-	}()
+	var err error
 
-	select {
-	case err := <-dialDone:
+	if m.port == 465 {
+		tlsConfig := &tls.Config{ServerName: m.host}
+		conn, err = tls.DialWithDialer(dialer, "tcp", addr, tlsConfig)
 		if err != nil {
 			return fmt.Errorf("tls dial error: %w", err)
 		}
-	case <-bgCtx.Done():
-		return fmt.Errorf("dial context deadline exceeded: %w", bgCtx.Err())
+		client, err = smtp.NewClient(conn, m.host)
+		if err != nil {
+			_ = conn.Close()
+			return fmt.Errorf("smtp client error: %w", err)
+		}
+	} else {
+		conn, err = dialer.DialContext(bgCtx, "tcp", addr)
+		if err != nil {
+			return fmt.Errorf("dial error: %w", err)
+		}
+		client, err = smtp.NewClient(conn, m.host)
+		if err != nil {
+			_ = conn.Close()
+			return fmt.Errorf("smtp client error: %w", err)
+		}
+		if ok, _ := client.Extension("STARTTLS"); ok {
+			tlsConfig := &tls.Config{ServerName: m.host}
+			if err := client.StartTLS(tlsConfig); err != nil {
+				_ = client.Close()
+				return fmt.Errorf("starttls error: %w", err)
+			}
+		}
 	}
-
 	defer conn.Close()
-
-	// Create SMTP client
-	client, err := smtp.NewClient(conn, m.host)
-	if err != nil {
-		return fmt.Errorf("smtp client error: %w", err)
-	}
 	defer client.Close()
 
-	// Set deadline on the connection
-	conn.SetDeadline(time.Now().Add(120 * time.Second))
+	_ = conn.SetDeadline(time.Now().Add(120 * time.Second))
 
-	// Authenticate
-	if err = client.Auth(auth); err != nil {
-		return fmt.Errorf("auth error: %w", err)
+	if auth != nil {
+		if ok, _ := client.Extension("AUTH"); ok {
+			if err = client.Auth(auth); err != nil {
+				return fmt.Errorf("auth error: %w", err)
+			}
+		}
 	}
 
-	// Send email
 	if err = client.Mail(m.from); err != nil {
 		return fmt.Errorf("mail error: %w", err)
 	}

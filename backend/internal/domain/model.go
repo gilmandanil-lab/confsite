@@ -1,4 +1,4 @@
-﻿package domain
+package domain
 
 import (
 	"time"
@@ -44,20 +44,20 @@ type UserWithRoles struct {
 }
 
 type Profile struct {
-	UserID                   uuid.UUID
-	Surname                  string
-	Name                     string
-	Patronymic               string
-	BirthDate                time.Time
-	City                     string
-	AcademicDegree           *string
-	Affiliation              string
-	Position                 string
-	Phone                    string
-	PostalAddress            string
-	ConsentDataProcessing    bool
-	ConsentDataTransfer      bool
-	UpdatedAt                time.Time
+	UserID                uuid.UUID
+	Surname               string
+	Name                  string
+	Patronymic            string
+	BirthDate             time.Time
+	City                  string
+	AcademicDegree        *string
+	Affiliation           string
+	Position              string
+	Phone                 string
+	PostalAddress         string
+	ConsentDataProcessing bool
+	ConsentDataTransfer   bool
+	UpdatedAt             time.Time
 }
 
 type ConsentType string
@@ -90,12 +90,25 @@ type Section struct {
 	SortOrder int32
 }
 
+type SectionResponsibleEmail struct {
+	SectionID uuid.UUID
+	Email     string
+}
+
 type TalkKind string
 
 const (
 	TalkPlenary TalkKind = "PLENARY"
 	TalkOral    TalkKind = "ORAL"
 	TalkPoster  TalkKind = "POSTER"
+)
+
+type TalkStatus string
+
+const (
+	TalkStatusWaiting  TalkStatus = "WAITING"
+	TalkStatusApproved TalkStatus = "APPROVED"
+	TalkStatusRejected TalkStatus = "REJECTED"
 )
 
 type TalkAuthor struct {
@@ -111,6 +124,7 @@ type Talk struct {
 	Affiliation   string
 	Abstract      string
 	Kind          TalkKind
+	Status        TalkStatus
 	AuthorsJSON   []byte // raw jsonb payload
 	CreatedAt     time.Time
 	FileURL       *string
@@ -120,6 +134,7 @@ type AdminTalkRow struct {
 	ID                 uuid.UUID
 	Title              string
 	Kind               TalkKind
+	Status             TalkStatus
 	SectionID          *uuid.UUID
 	ScheduleTime       *time.Time
 	FileURL            *string
@@ -177,16 +192,16 @@ const (
 )
 
 type Material struct {
-	ID             uuid.UUID
-	Type           MaterialType
-	TitleRu        string
-	TitleEn        string
-	DescriptionRu  *string
-	DescriptionEn  *string
-	FileURL        string
-	FileSize       *int64
-	MimeType       *string
-	UploadedBy     *uuid.UUID
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID            uuid.UUID
+	Type          MaterialType
+	TitleRu       string
+	TitleEn       string
+	DescriptionRu *string
+	DescriptionEn *string
+	FileURL       string
+	FileSize      *int64
+	MimeType      *string
+	UploadedBy    *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }

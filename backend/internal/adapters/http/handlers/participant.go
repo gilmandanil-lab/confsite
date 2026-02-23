@@ -1,4 +1,4 @@
-﻿package http
+package http
 
 import (
 	"encoding/json"
@@ -57,9 +57,11 @@ func ListMyTalks(s *services.TalkService) gin.HandlerFunc {
 				"id":          t.ID,
 				"title":       t.Title,
 				"kind":        t.Kind,
+				"status":      t.Status,
 				"sectionId":   t.SectionID,
 				"affiliation": t.Affiliation,
 				"abstract":    t.Abstract,
+				"fileUrl":     t.FileURL,
 				"authors":     json.RawMessage(t.AuthorsJSON),
 			})
 		}
@@ -105,9 +107,11 @@ func GetMyTalk(s *services.TalkService) gin.HandlerFunc {
 			"id":          t.ID,
 			"title":       t.Title,
 			"kind":        t.Kind,
+			"status":      t.Status,
 			"sectionId":   t.SectionID,
 			"affiliation": t.Affiliation,
 			"abstract":    t.Abstract,
+			"fileUrl":     t.FileURL,
 			"authors":     json.RawMessage(t.AuthorsJSON),
 		})
 	}

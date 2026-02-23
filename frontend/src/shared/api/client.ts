@@ -5,6 +5,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 let refreshPromise: Promise<void> | null = null;
 
 function withLang(path: string, lang: string) {
+  if (/^https?:\/\//i.test(path)) return path;
   if (path.includes("lang=")) return `${API_BASE}${path}`;
   const sep = path.includes("?") ? "&" : "?";
   return `${API_BASE}${path}${sep}lang=${lang}`;

@@ -1,8 +1,8 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { apiUpload, apiGet } from "../../../shared/api/client";
-import { DocumentTemplate } from "../../../shared/api";
+import { apiUpload } from "../../../shared/api/client";
+import { fetchAdminDocumentTemplates } from "../../../shared/api";
 
 export default function Documents() {
   const { t } = useTranslation();
@@ -11,14 +11,14 @@ export default function Documents() {
 
   const documentsQuery = useQuery({
     queryKey: ["admin-documents"],
-    queryFn: () => apiGet<DocumentTemplate[]>("/api/admin/documents/templates"),
+    queryFn: fetchAdminDocumentTemplates,
   });
 
   const uploadMutation = useMutation({
     mutationFn: (payload: { file: File; documentType: string }) => {
       const formData = new FormData();
       formData.append("file", payload.file);
-      formData.append("document_type", payload.documentType);
+      formData.append("type", payload.documentType);
       return apiUpload<{ ok: boolean; url: string }>(
         "/api/admin/documents/template",
         formData
@@ -51,7 +51,7 @@ export default function Documents() {
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > 5 * 1024 * 1024) {
       setError(t("registration.fileTooLarge"));
       return;
     }
@@ -63,6 +63,7 @@ export default function Documents() {
   const documentTypes = [
     { id: "CONSENT_DATA_PROCESSING", label: "Consent to Data Processing" },
     { id: "CONSENT_DATA_TRANSFER", label: "Consent to Data Transfer" },
+    { id: "ABSTRACT_TEMPLATE", label: "Abstract Template" },
     { id: "LICENSE_AGREEMENT", label: "License Agreement" },
   ];
 
@@ -83,7 +84,7 @@ export default function Documents() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {documentTypes.map((docType) => {
           const template = documentsQuery.data?.find(
             (t) => t.documentType === docType.id

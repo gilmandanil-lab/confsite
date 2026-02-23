@@ -159,34 +159,6 @@ export default function Fee() {
           </div>
         </div>
 
-        {/* Publication Only */}
-        <div className="card overflow-hidden border-l-4 border-l-orange-500 p-6">
-          <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 pt-1">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
-                <BanknotesIcon className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-              </div>
-            </div>
-            <div className="flex-grow">
-              <h3 className="text-xl font-semibold text-slate-900 dark:text-white">
-                {t("fee.publicationOnly")}
-              </h3>
-              <p className="mt-2 text-slate-600 dark:text-slate-400">
-                {t("fee.publicationDesc")}
-              </p>
-              <div className="mt-4">
-                <div className="flex justify-between rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
-                  <span className="font-medium text-slate-700 dark:text-slate-300">
-                    {t("fee.fee")}
-                  </span>
-                  <span className="font-semibold text-orange-600 dark:text-orange-400">
-                    {t("fee.publicationFee")}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Important Notes */}
@@ -195,7 +167,12 @@ export default function Fee() {
           <p className="text-sm text-slate-700 dark:text-slate-300">
             <span className="font-semibold">{t("fee.deadline")}:</span> {t("fee.deadlineDate")}
           </p>
-        </div>docker compose up -d --build web
+        </div>
+        <div className="card border-l-4 border-l-emerald-500 bg-gradient-to-r from-emerald-50 to-transparent p-6 dark:from-emerald-900/20 dark:to-transparent">
+          <p className="text-sm text-slate-700 dark:text-slate-300">
+            {t("fee.schoolExemption")}
+          </p>
+        </div>
         <div className="card border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50 to-transparent p-6 dark:from-blue-900/20 dark:to-transparent">
           <p className="text-sm text-slate-700 dark:text-slate-300">
             {t("fee.note")}

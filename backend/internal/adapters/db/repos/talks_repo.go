@@ -1,4 +1,4 @@
-﻿package repos
+package repos
 
 import (
 	"context"
@@ -23,8 +23,8 @@ func NewTalksRepo(db *pgxpool.Pool) *TalksRepo {
 func (r *TalksRepo) Create(ctx context.Context, t domain.Talk) (uuid.UUID, error) {
 	id := uuid.New()
 	_, err := r.db.Exec(ctx, `
-INSERT INTO talks (id, speaker_user_id, section_id, title, affiliation, abstract, kind, authors, file_url)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+INSERT INTO talks (id, speaker_user_id, section_id, title, affiliation, abstract, kind, authors, status, file_url)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'WAITING',$9)`,
 		id, t.SpeakerUserID, t.SectionID, t.Title, t.Affiliation, t.Abstract, string(t.Kind), t.AuthorsJSON, t.FileURL)
 	return id, err
 }
@@ -32,7 +32,7 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
 func (r *TalksRepo) Update(ctx context.Context, t domain.Talk) error {
 	_, err := r.db.Exec(ctx, `
 UPDATE talks
-SET section_id=$2, title=$3, affiliation=$4, abstract=$5, kind=$6, authors=$7
+SET section_id=$2, title=$3, affiliation=$4, abstract=$5, kind=$6, authors=$7, status='WAITING', reviewed_at=NULL
 WHERE id=$1`,
 		t.ID, t.SectionID, t.Title, t.Affiliation, t.Abstract, string(t.Kind), t.AuthorsJSON)
 	return err
@@ -44,22 +44,24 @@ func (r *TalksRepo) Delete(ctx context.Context, id uuid.UUID, speakerID uuid.UUI
 }
 
 func (r *TalksRepo) Get(ctx context.Context, id uuid.UUID) (*domain.Talk, error) {
-	row := r.db.QueryRow(ctx, `
-SELECT id, speaker_user_id, section_id, title, affiliation, abstract, kind, authors, file_url, created_at
-FROM talks WHERE id=$1`, id)
-
 	var t domain.Talk
 	var kind string
-	if err := row.Scan(&t.ID, &t.SpeakerUserID, &t.SectionID, &t.Title, &t.Affiliation, &t.Abstract, &kind, &t.AuthorsJSON, &t.FileURL, &t.CreatedAt); err != nil {
+	var status string
+	if err := r.db.QueryRow(ctx, `
+SELECT id, speaker_user_id, section_id, title, affiliation, abstract, kind, status, authors, file_url, created_at
+FROM talks WHERE id=$1`, id).Scan(
+		&t.ID, &t.SpeakerUserID, &t.SectionID, &t.Title, &t.Affiliation, &t.Abstract, &kind, &status, &t.AuthorsJSON, &t.FileURL, &t.CreatedAt,
+	); err != nil {
 		return nil, err
 	}
 	t.Kind = domain.TalkKind(kind)
+	t.Status = domain.TalkStatus(status)
 	return &t, nil
 }
 
 func (r *TalksRepo) ListBySpeaker(ctx context.Context, speakerID uuid.UUID) ([]domain.Talk, error) {
 	rows, err := r.db.Query(ctx, `
-SELECT id, speaker_user_id, section_id, title, affiliation, abstract, kind, authors, file_url, created_at
+SELECT id, speaker_user_id, section_id, title, affiliation, abstract, kind, status, authors, file_url, created_at
 FROM talks WHERE speaker_user_id=$1 ORDER BY created_at DESC`, speakerID)
 	if err != nil {
 		return nil, err
@@ -70,10 +72,12 @@ FROM talks WHERE speaker_user_id=$1 ORDER BY created_at DESC`, speakerID)
 	for rows.Next() {
 		var t domain.Talk
 		var kind string
-		if err := rows.Scan(&t.ID, &t.SpeakerUserID, &t.SectionID, &t.Title, &t.Affiliation, &t.Abstract, &kind, &t.AuthorsJSON, &t.FileURL, &t.CreatedAt); err != nil {
+		var status string
+		if err := rows.Scan(&t.ID, &t.SpeakerUserID, &t.SectionID, &t.Title, &t.Affiliation, &t.Abstract, &kind, &status, &t.AuthorsJSON, &t.FileURL, &t.CreatedAt); err != nil {
 			return nil, err
 		}
 		t.Kind = domain.TalkKind(kind)
+		t.Status = domain.TalkStatus(status)
 		out = append(out, t)
 	}
 	return out, rows.Err()
@@ -88,6 +92,7 @@ func (r *TalksRepo) ListAdmin(ctx context.Context, sectionID *uuid.UUID, onlyPle
 	query := `
 SELECT
 	t.id, t.title, t.kind, t.authors, t.abstract,
+	t.status,
 	t.section_id, t.schedule_time, t.file_url,
 	s.title_ru, s.title_en,
 	p.surname || ' ' || p.name || ' ' || p.patronymic AS speaker_full_name,
@@ -98,9 +103,9 @@ LEFT JOIN sections s ON s.id=t.section_id
 WHERE ( $1::uuid IS NULL OR t.section_id=$1 )
   AND ( $2::boolean = false OR t.kind='PLENARY' )
 ORDER BY COALESCE(t.schedule_time, t.created_at) DESC`
-	
+
 	println("ListAdmin: executing query with sectionID=", sectionID, "onlyPlenary=", onlyPlenary)
-	
+
 	rows, err := r.db.Query(ctx, query, sectionID, onlyPlenary)
 	if err != nil {
 		println("ListAdmin query error:", err.Error())
@@ -112,8 +117,9 @@ ORDER BY COALESCE(t.schedule_time, t.created_at) DESC`
 	for rows.Next() {
 		var row domain.AdminTalkRow
 		var kind string
+		var status string
 		if err := rows.Scan(
-			&row.ID, &row.Title, &kind, &row.AuthorsJSON, &row.Abstract,
+			&row.ID, &row.Title, &kind, &row.AuthorsJSON, &row.Abstract, &status,
 			&row.SectionID, &row.ScheduleTime, &row.FileURL,
 			&row.SectionTitleRu, &row.SectionTitleEn,
 			&row.SpeakerFullName, &row.SpeakerCity, &row.SpeakerAffiliation,
@@ -122,6 +128,7 @@ ORDER BY COALESCE(t.schedule_time, t.created_at) DESC`
 			return nil, err
 		}
 		row.Kind = domain.TalkKind(kind)
+		row.Status = domain.TalkStatus(status)
 		out = append(out, row)
 	}
 	println("ListAdmin: found", len(out), "talks, checking rows.Err()...")
@@ -146,7 +153,7 @@ func (r *TalksRepo) UpdateFile(ctx context.Context, talkID uuid.UUID, fileURL st
 	println("UpdateFile: talkID =", talkID.String(), "fileURL =", fileURL)
 	_, err := r.db.Exec(ctx, `
 UPDATE talks
-SET file_url=$1
+SET file_url=$1, status='WAITING', reviewed_at=NULL
 WHERE id=$2`,
 		fileURL, talkID)
 	if err != nil {
@@ -154,5 +161,13 @@ WHERE id=$2`,
 	} else {
 		println("UpdateFile success")
 	}
+	return err
+}
+
+func (r *TalksRepo) SetStatus(ctx context.Context, talkID uuid.UUID, status domain.TalkStatus) error {
+	_, err := r.db.Exec(ctx, `
+UPDATE talks
+SET status=$2, reviewed_at=CASE WHEN $2='WAITING' THEN NULL ELSE now() END
+WHERE id=$1`, talkID, string(status))
 	return err
 }

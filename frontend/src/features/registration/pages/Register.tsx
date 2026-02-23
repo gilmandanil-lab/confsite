@@ -31,6 +31,7 @@ export default function Register() {
   const [fileUploadedProcessing, setFileUploadedProcessing] = useState(false);
   const [fileUploadedTransfer, setFileUploadedTransfer] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   const profileQuery = useQuery({
     queryKey: ["profile", i18n.language],
@@ -83,6 +84,19 @@ export default function Register() {
     }
   }, [profileQuery.data, setValue]);
 
+  const hasCompletedProfile =
+    !!profileQuery.data &&
+    [profileQuery.data.surname, profileQuery.data.name, profileQuery.data.patronymic, profileQuery.data.birthDate, profileQuery.data.city, profileQuery.data.affiliation, profileQuery.data.position, profileQuery.data.phone, profileQuery.data.postalAddress]
+      .every((value) => (value || "").toString().trim().length > 0) &&
+    profileQuery.data.consentDataProcessing &&
+    profileQuery.data.consentDataTransfer;
+
+  useEffect(() => {
+    if (hasCompletedProfile) {
+      setSubmitted(true);
+    }
+  }, [hasCompletedProfile]);
+
   const registrationMutation = useMutation({
     mutationFn: submitRegistration,
   });
@@ -106,7 +120,7 @@ export default function Register() {
         ...data,
         academicDegree: data.academicDegree || null,
       });
-      alert(t("registration.success"));
+      setSubmitted(true);
     } catch (err: any) {
       setError(err?.message || t("registration.error"));
     }
@@ -177,8 +191,15 @@ export default function Register() {
             {t("registration.alreadyApproved")}
           </div>
         )}
+        {user?.status === "WAITING" && submitted && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-100">
+            <div className="font-semibold">{t("registration.pendingTitle")}</div>
+            <div className="mt-1 text-sm">{t("registration.pendingHint")}</div>
+          </div>
+        )}
       </div>
 
+      {!(user?.status === "WAITING" && submitted) && (
       <form onSubmit={onSubmit} className="card space-y-4 p-6">
         <div className="grid gap-4 md:grid-cols-2">
           <FormField label={t("fields.surname")} required error={errors.surname?.message}>
@@ -391,6 +412,7 @@ export default function Register() {
           {registrationMutation.isPending ? t("actions.loading") : t("registration.submit")}
         </button>
       </form>
+      )}
     </div>
   );
 }

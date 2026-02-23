@@ -1,4 +1,4 @@
-﻿package http
+package http
 
 import (
 	"os"
@@ -88,7 +88,7 @@ func NewRouter(cfg config.Config, database *db.DB) *gin.Engine {
 		CookieSecure:   cfg.Env == "prod",
 		CookieDomain:   "",
 
-		OrganizerEmails: []string{}, // можно добавить из env позже
+		OrganizerEmails: cfg.OrganizerEmails,
 	}
 	clock := services.SystemClock{}
 
@@ -173,6 +173,10 @@ func NewRouter(cfg config.Config, database *db.DB) *gin.Engine {
 
 	admin.GET("/talks", h.AdminTalksList(talksRepo))
 	admin.PUT("/talks/:id", h.AdminUpdateTalk(talksRepo))
+	admin.PATCH("/talks/:id/status", h.AdminSetTalkStatus(adminSvc))
+
+	admin.GET("/section-responsibles", h.AdminListSectionResponsibles(sectionsRepo))
+	admin.PUT("/sections/:id/responsibles", h.AdminSetSectionResponsibles(sectionsRepo))
 
 	admin.POST("/program/file", h.AdminUploadProgramFile(st, database.Pool))
 	admin.DELETE("/program/file", h.AdminDeleteProgramFile(database.Pool))

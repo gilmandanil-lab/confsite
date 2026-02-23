@@ -18,18 +18,28 @@ func NewDocumentsRepo(db *pgxpool.Pool) ports.DocumentsRepo {
 }
 
 func (r *DocumentsRepo) UpsertTemplate(ctx context.Context, name, desc, docType, fileURL string, size *int64, mimeType *string) error {
-	_, err := r.db.Exec(ctx, `
-INSERT INTO document_templates (name, description, document_type, file_url, file_size, mime_type, version)
-VALUES ($1, $2, $3, $4, $5, $6, 1)
-ON CONFLICT (document_type) DO UPDATE SET
+	tag, err := r.db.Exec(ctx, `
+UPDATE document_templates
+SET
   name = $1,
   description = $2,
   file_url = $4,
   file_size = $5,
   mime_type = $6,
-  version = document_templates.version + 1,
+  version = version + 1,
   updated_at = now()
-WHERE document_templates.document_type = $3`,
+WHERE document_type = $3`,
+		name, desc, docType, fileURL, size, mimeType)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() > 0 {
+		return nil
+	}
+
+	_, err = r.db.Exec(ctx, `
+INSERT INTO document_templates (name, description, document_type, file_url, file_size, mime_type, version)
+VALUES ($1, $2, $3, $4, $5, $6, 1)`,
 		name, desc, docType, fileURL, size, mimeType)
 	return err
 }

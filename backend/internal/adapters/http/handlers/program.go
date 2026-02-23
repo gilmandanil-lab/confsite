@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"confsite/backend/internal/lib/files"
 	"confsite/backend/internal/middleware"
@@ -18,12 +19,12 @@ import (
 
 func PublicProgramFile(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var id, filename, filepath, mimeType string
-		var uploadedAt string
+		var id, filename, filePath, mimeType string
+		var uploadedAt time.Time
 		
 		err := pool.QueryRow(c, 
 			`SELECT id, filename, file_path, mime_type, uploaded_at FROM program_files ORDER BY uploaded_at DESC LIMIT 1`,
-		).Scan(&id, &filename, &filepath, &mimeType, &uploadedAt)
+		).Scan(&id, &filename, &filePath, &mimeType, &uploadedAt)
 		
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
@@ -33,7 +34,7 @@ func PublicProgramFile(pool *pgxpool.Pool) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"id":         id,
 			"filename":   filename,
-			"file_path":  filepath,
+			"file_path":  filePath,
 			"mime_type":  mimeType,
 			"uploaded_at": uploadedAt,
 		})

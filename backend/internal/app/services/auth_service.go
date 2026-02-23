@@ -1,4 +1,4 @@
-﻿package services
+package services
 
 import (
 	"context"
@@ -70,10 +70,13 @@ func (s *AuthService) Register(ctx context.Context, email, password, lang string
 	// default role USER
 	_ = s.users.AssignRole(ctx, userID, domain.RoleUser, nil)
 
-	// Mark email as verified immediately (no verification needed)
-	if err := s.users.SetEmailVerified(ctx, userID, true); err != nil {
-		// Log error but don't fail registration
-		println("Warning: failed to mark email as verified for user", userID.String(), ":", err.Error())
+	// create verify token and persist its hash
+	rawVerifyToken, verifyTokenHash, err := newTokenPair()
+	if err != nil {
+		return err
+	}
+	if err := s.tokens.Create(ctx, userID, verifyTokenHash, s.clock.Now().Add(s.cfg.VerifyEmailTTL)); err != nil {
+		return err
 	}
 
 	// create profile (required for talks and other features)
@@ -82,14 +85,14 @@ func (s *AuthService) Register(ctx context.Context, email, password, lang string
 		println("Warning: failed to create profile for user", userID.String(), ":", err.Error())
 	}
 
-	// Send welcome email asynchronously in a goroutine to avoid blocking registration
-	// Use simple welcome email without verification link
+	// Send verification email asynchronously to avoid blocking registration API.
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
-		subj, html, text := s.templates.WelcomeEmail(SafeLang(lang))
+		verifyURL := VerifyURL(s.cfg.AppURL, rawVerifyToken)
+		subj, html, text := s.templates.VerifyEmail(SafeLang(lang), verifyURL)
 		if err := s.mailer.Send(ctx, email, subj, html, text); err != nil {
-			println("Warning: failed to send welcome email to", email, ":", err.Error())
+			println("Warning: failed to send verify email to", email, ":", err.Error())
 		}
 	}()
 	return nil
@@ -110,7 +113,24 @@ func (s *AuthService) VerifyEmail(ctx context.Context, token string) error {
 	if err := s.tokens.MarkUsed(ctx, t.ID); err != nil {
 		return err
 	}
-	return s.users.SetEmailVerified(ctx, t.UserID, true)
+	if err := s.users.SetEmailVerified(ctx, t.UserID, true); err != nil {
+		return err
+	}
+
+	// Welcome email after successful verification.
+	u, _, err := s.users.ByID(ctx, t.UserID)
+	if err == nil {
+		go func(email string) {
+			ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+			defer cancel()
+			subj, html, text := s.templates.WelcomeEmail("ru")
+			if err := s.mailer.Send(ctx, email, subj, html, text); err != nil {
+				println("Warning: failed to send welcome email to", email, ":", err.Error())
+			}
+		}(u.Email)
+	}
+
+	return nil
 }
 
 func (s *AuthService) Login(ctx context.Context, email, password, lang string) (*IssuedTokens, error) {

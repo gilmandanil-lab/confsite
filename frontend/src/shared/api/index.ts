@@ -14,7 +14,9 @@ import {
   PublicParticipant,
   PublicSection,
   SectionDto,
+  SectionResponsiblesRow,
   TalkDto,
+  UserStatus,
 } from "../types";
 
 export type LoginResponse = {
@@ -75,6 +77,7 @@ export async function fetchPublicProgram(): Promise<AdminTalkRow[]> {
     id: t.id ?? t.ID,
     title: t.title ?? t.Title,
     kind: t.kind ?? t.Kind,
+    status: t.status ?? t.Status ?? "APPROVED",
     sectionId: t.sectionId ?? t.SectionID ?? null,
     sectionTitleRu: t.sectionTitleRu ?? t.SectionTitleRu ?? null,
     sectionTitleEn: t.sectionTitleEn ?? t.SectionTitleEn ?? null,
@@ -133,6 +136,7 @@ export async function fetchMyTalks(): Promise<TalkDto[]> {
     affiliation: t.affiliation,
     abstract: t.abstract,
     kind: t.kind,
+    status: t.status ?? t.Status ?? "WAITING",
     sectionId: t.sectionId ?? null,
     fileUrl: t.fileUrl ?? null,
     authors: typeof t.authors === "string" ? JSON.parse(t.authors) : t.authors,
@@ -147,6 +151,7 @@ export async function fetchTalk(id: string): Promise<TalkDto> {
     affiliation: t.affiliation,
     abstract: t.abstract,
     kind: t.kind,
+    status: t.status ?? t.Status ?? "WAITING",
     sectionId: t.sectionId ?? null,
     fileUrl: t.fileUrl ?? null,
     authors: typeof t.authors === "string" ? JSON.parse(t.authors) : t.authors,
@@ -230,7 +235,7 @@ export async function adminListUsers(): Promise<AdminUserDto[]> {
 }
 
 export function adminSetUserStatus(id: string, status: string) {
-  return apiPatch<{ ok: boolean }>(`/api/admin/users/${id}/status`, { status });
+  return apiPatch<{ ok: boolean; status: UserStatus }>(`/api/admin/users/${id}/status`, { status });
 }
 
 export async function adminGetUserConsents(userId: string): Promise<ConsentFile[]> {
@@ -306,6 +311,7 @@ export async function adminListTalks(): Promise<AdminTalkRow[]> {
     id: t.id ?? t.ID,
     title: t.title ?? t.Title,
     kind: t.kind ?? t.Kind,
+    status: t.status ?? t.Status ?? "WAITING",
     sectionId: t.sectionId ?? t.SectionID ?? null,
     sectionTitleRu: t.sectionTitleRu ?? t.SectionTitleRu ?? null,
     sectionTitleEn: t.sectionTitleEn ?? t.SectionTitleEn ?? null,
@@ -317,6 +323,24 @@ export async function adminListTalks(): Promise<AdminTalkRow[]> {
     abstract: t.abstract ?? t.Abstract ?? "",
     scheduleTime: t.scheduleTime ?? t.ScheduleTime ?? null,
   }));
+}
+
+export function adminSetTalkStatus(id: string, status: UserStatus) {
+  return apiPatch<{ ok: boolean; status: UserStatus }>(`/api/admin/talks/${id}/status`, { status });
+}
+
+export async function adminListSectionResponsibles(): Promise<SectionResponsiblesRow[]> {
+  const rows = await apiGet<any[]>("/api/admin/section-responsibles");
+  return rows.map((r) => ({
+    sectionId: r.sectionId ?? r.sectionID ?? r.SectionID,
+    sectionTitleRu: r.sectionTitleRu ?? r.sectionTitleRU ?? r.SectionTitleRu ?? "",
+    sectionTitleEn: r.sectionTitleEn ?? r.sectionTitleEN ?? r.SectionTitleEn ?? "",
+    emails: Array.isArray(r.emails) ? r.emails : [],
+  }));
+}
+
+export function adminSetSectionResponsibles(sectionId: string, emails: string[]) {
+  return apiPut<{ ok: boolean }>(`/api/admin/sections/${sectionId}/responsibles`, { emails });
 }
 
 export function adminUpdateTalk(id: string, input: { sectionId: string | null; scheduleTime: string | null }) {
@@ -365,8 +389,52 @@ export type DocumentTemplate = {
   updatedAt: string;
 };
 
+export type ProgramFileDto = {
+  id: string;
+  filename: string;
+  filePath: string;
+  uploadedAt: string;
+};
+
+function normalizeDocumentTemplate(raw: any): DocumentTemplate {
+  return {
+    id: raw.id ?? raw.ID,
+    name: raw.name ?? raw.Name,
+    description: raw.description ?? raw.Description ?? undefined,
+    documentType: raw.documentType ?? raw.DocumentType,
+    fileURL: raw.fileURL ?? raw.fileUrl ?? raw.FileURL,
+    fileSize: raw.fileSize ?? raw.FileSize ?? undefined,
+    mimeType: raw.mimeType ?? raw.MimeType ?? undefined,
+    version: raw.version ?? raw.Version ?? 1,
+    isActive: raw.isActive ?? raw.IsActive ?? true,
+    createdAt: raw.createdAt ?? raw.CreatedAt,
+    updatedAt: raw.updatedAt ?? raw.UpdatedAt,
+  };
+}
+
+export async function fetchPublicProgramFile(): Promise<ProgramFileDto | null> {
+  try {
+    const raw = await apiGet<any>("/api/public/program-file");
+    return {
+      id: raw.id ?? raw.ID,
+      filename: raw.filename ?? raw.Filename,
+      filePath: raw.file_path ?? raw.filePath ?? raw.FilePath ?? "",
+      uploadedAt: raw.uploaded_at ?? raw.uploadedAt ?? raw.UploadedAt,
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+export async function fetchAdminDocumentTemplates(): Promise<DocumentTemplate[]> {
+  const rows = await apiGet<any[]>("/api/admin/documents/templates");
+  return rows.map(normalizeDocumentTemplate);
+}
+
 export function fetchPublicDocumentTemplates() {
-  return apiGet<DocumentTemplate[]>("/api/public/documents/templates");
+  return apiGet<any[]>("/api/public/documents/templates").then((rows) =>
+    rows.map(normalizeDocumentTemplate)
+  );
 }
 
 export function downloadDocumentTemplate(fileURL: string, fileName: string) {
@@ -376,7 +444,7 @@ export function downloadDocumentTemplate(fileURL: string, fileName: string) {
 export function uploadSignedDocument(file: File, documentType: string, talkId?: string) {
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("document_type", documentType);
+  formData.append("type", documentType);
   if (talkId) {
     formData.append("talk_id", talkId);
   }

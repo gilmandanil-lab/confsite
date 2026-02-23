@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 const NAV = [
   { to: "/admin/users", key: "admin.users" },
   { to: "/admin/sections", key: "admin.sections" },
+  { to: "/admin/responsibles", key: "admin.responsibles" },
   { to: "/admin/news", key: "admin.news" },
   { to: "/admin/pages", key: "admin.pages" },
   { to: "/admin/talks", key: "admin.talks" },

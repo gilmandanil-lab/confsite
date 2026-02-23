@@ -7,30 +7,17 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import { apiDelete, apiUpload } from "../../../shared/api/client";
-
-interface ProgramFile {
-  id: string;
-  filename: string;
-  file_path: string;
-  uploaded_at: string;
-}
+import { fetchPublicProgramFile } from "../../../shared/api";
 
 export function ProgramFileManager() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const programFileQuery = useQuery({
     queryKey: ["admin-program-file"],
-    queryFn: async () => {
-      try {
-        const response = await fetch("/api/public/program-file");
-        if (!response.ok) return null;
-        return (await response.json()) as ProgramFile;
-      } catch {
-        return null;
-      }
-    },
+    queryFn: fetchPublicProgramFile,
   });
 
   const uploadMutation = useMutation({
@@ -41,6 +28,10 @@ export function ProgramFileManager() {
       queryClient.invalidateQueries({ queryKey: ["admin-program-file"] });
       queryClient.invalidateQueries({ queryKey: ["program-file"] });
       setFile(null);
+      setUploadError(null);
+    },
+    onError: (error: Error) => {
+      setUploadError(error.message || t("admin.uploadError"));
     },
   });
 
@@ -56,6 +47,7 @@ export function ProgramFileManager() {
 
   const handleUpload = async () => {
     if (!file) return;
+    setUploadError(null);
     const formData = new FormData();
     formData.append("file", file);
     uploadMutation.mutate(formData);
@@ -79,7 +71,7 @@ export function ProgramFileManager() {
                   </p>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
                     Загруженно:{" "}
-                    {new Date(programFileQuery.data.uploaded_at).toLocaleDateString(
+                    {new Date(programFileQuery.data.uploadedAt).toLocaleDateString(
                       "ru-RU"
                     )}
                   </p>
@@ -139,6 +131,9 @@ export function ProgramFileManager() {
             </div>
           </div>
         )}
+        {uploadError ? (
+          <p className="mt-4 text-sm text-red-600 dark:text-red-400">{uploadError}</p>
+        ) : null}
       </div>
     </div>
   );

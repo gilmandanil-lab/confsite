@@ -1,9 +1,11 @@
-﻿package services
+package services
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"html"
 	"strings"
 	"unicode/utf8"
 
@@ -56,6 +58,7 @@ func (s *TalkService) validateTalk(t domain.Talk) error {
 
 func (s *TalkService) Create(ctx context.Context, speakerID uuid.UUID, t domain.Talk) (uuid.UUID, error) {
 	t.SpeakerUserID = speakerID
+	t.Status = domain.TalkStatusWaiting
 	if err := s.validateTalk(t); err != nil {
 		return uuid.Nil, err
 	}
@@ -75,6 +78,7 @@ func (s *TalkService) Update(ctx context.Context, speakerID uuid.UUID, t domain.
 		return domain.ErrForbidden
 	}
 	t.SpeakerUserID = speakerID
+	t.Status = domain.TalkStatusWaiting
 	if err := s.validateTalk(t); err != nil {
 		return err
 	}
@@ -117,55 +121,7 @@ func (s *TalkService) NotifyFileUploaded(ctx context.Context, speakerID, talkID 
 	subj, html, text := s.templates.TalkFileUploadedToUser(SafeLang(lang), t.Title)
 	_ = s.mailer.Send(ctx, u.Email, subj, html, text)
 
-	// email to organizers
-	authorsLine := authorsToLine(t.AuthorsJSON)
-	secTitle := ""
-	if t.SectionID != nil {
-		secs, _ := s.sections.List(ctx)
-		for _, ss := range secs {
-			if ss.ID == *t.SectionID {
-				if SafeLang(lang) == "en" {
-					secTitle = ss.TitleEn
-				} else {
-					secTitle = ss.TitleRu
-				}
-			}
-		}
-	}
-
-	fileNote := "нет файла"
-	if SafeLang(lang) == "en" {
-		fileNote = "no file"
-	}
-	if fileURL != "" {
-		fileNote = fileURL
-	}
-
-	payload := OrgTalkUploadedPayload{
-		SpeakerFullName: fullName(prof),
-		SpeakerAffiliation: safeStr(func() string {
-			if prof != nil {
-				return prof.Affiliation
-			}
-			return ""
-		}()),
-		SpeakerCity: safeStr(func() string {
-			if prof != nil {
-				return prof.City
-			}
-			return ""
-		}()),
-		Title:         t.Title,
-		AuthorsLine:   authorsLine,
-		Abstract:      t.Abstract,
-		Kind:          string(t.Kind),
-		Section:       secTitle,
-		FileNoteOrURL: fileNote,
-	}
-	for _, org := range s.cfg.OrganizerEmails {
-		subj2, html2, text2 := s.templates.OrgTalkFileUploaded(SafeLang(lang), payload)
-		_ = s.mailer.Send(ctx, org, subj2, html2, text2)
-	}
+	_ = s.notifyResponsibles(ctx, t, prof, fileURL)
 
 	return nil
 }
@@ -185,6 +141,57 @@ func (s *TalkService) SetFileURL(ctx context.Context, speakerID, talkID uuid.UUI
 	}
 	// send notifications
 	return s.NotifyFileUploaded(ctx, speakerID, talkID, fileURL, lang)
+}
+
+func (s *TalkService) notifyResponsibles(ctx context.Context, t *domain.Talk, prof *domain.Profile, fileURL string) error {
+	if t.SectionID == nil {
+		return nil
+	}
+	all, err := s.sections.ListResponsibleEmails(ctx)
+	if err != nil {
+		return err
+	}
+	recipients := make([]string, 0, 3)
+	for _, item := range all {
+		if item.SectionID == *t.SectionID {
+			recipients = append(recipients, item.Email)
+		}
+	}
+	if len(recipients) == 0 {
+		return nil
+	}
+
+	authors := authorsToLine(t.AuthorsJSON)
+	subject := "Новый доклад на проверку: " + strings.TrimSpace(t.Title)
+	textBody := fmt.Sprintf(`«ФИЗИКА НИЗКОТЕМПЕРАТУРНОЙ ПЛАЗМЫ» (ФНТП-2026)
+
+Название доклада: %s
+Аннотация:
+%s
+
+Файл тезиса: %s
+Авторы: %s
+Докладчик: %s`,
+		strings.TrimSpace(t.Title),
+		strings.TrimSpace(t.Abstract),
+		strings.TrimSpace(fileURL),
+		strings.TrimSpace(authors),
+		strings.TrimSpace(fullName(prof)),
+	)
+	htmlBody := fmt.Sprintf(
+		"<p><strong>«ФИЗИКА НИЗКОТЕМПЕРАТУРНОЙ ПЛАЗМЫ» (ФНТП-2026)</strong></p><p><strong>Название доклада:</strong> %s</p><p><strong>Аннотация:</strong><br>%s</p><p><strong>Файл тезиса:</strong> <a href=\"%s\">%s</a></p><p><strong>Авторы:</strong> %s</p><p><strong>Докладчик:</strong> %s</p>",
+		html.EscapeString(strings.TrimSpace(t.Title)),
+		html.EscapeString(strings.TrimSpace(t.Abstract)),
+		html.EscapeString(strings.TrimSpace(fileURL)),
+		html.EscapeString(strings.TrimSpace(fileURL)),
+		html.EscapeString(strings.TrimSpace(authors)),
+		html.EscapeString(strings.TrimSpace(fullName(prof))),
+	)
+
+	for _, to := range recipients {
+		_ = s.mailer.Send(ctx, to, subject, htmlBody, textBody)
+	}
+	return nil
 }
 
 func authorsToLine(b []byte) string {

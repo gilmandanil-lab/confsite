@@ -3,7 +3,7 @@ INSERT INTO roles(code) VALUES
 ('USER'),('PARTICIPANT'),('ADMIN'),('SECTION_ADMIN')
 ON CONFLICT DO NOTHING;
 
--- admin user: admin@confsite.local / Admin123!
+-- admin user: / Admin123!
 INSERT INTO users(id,email,password_hash,email_verified,status)
 VALUES (
   uuid_generate_v4(),

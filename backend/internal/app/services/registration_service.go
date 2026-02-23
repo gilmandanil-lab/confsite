@@ -1,4 +1,4 @@
-﻿package services
+package services
 
 import (
 	"context"
@@ -42,13 +42,17 @@ func (s *RegistrationService) Submit(ctx context.Context, userID uuid.UUID, prof
 
 	// user email: received
 	subj, html, text := s.templates.RegistrationReceived(SafeLang(lang))
-	_ = s.mailer.Send(ctx, u.Email, subj, html, text)
+	if err := s.mailer.Send(ctx, u.Email, subj, html, text); err != nil {
+		println("Warning: failed to send registration-received email to", u.Email, ":", err.Error())
+	}
 
 	// org email: new registration
 	fullName := strings.TrimSpace(profile.Surname + " " + profile.Name + " " + profile.Patronymic)
 	for _, org := range s.cfg.OrganizerEmails {
 		subj2, html2, text2 := s.templates.OrgNewRegistration(SafeLang(lang), fullName, profile.Affiliation, profile.City, u.Email)
-		_ = s.mailer.Send(ctx, org, subj2, html2, text2)
+		if err := s.mailer.Send(ctx, org, subj2, html2, text2); err != nil {
+			println("Warning: failed to send org new-registration email to", org, ":", err.Error())
+		}
 	}
 
 	return nil

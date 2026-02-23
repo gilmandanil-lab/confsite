@@ -1,7 +1,9 @@
-﻿package http
+package http
 
 import (
 	"net/http"
+	"net/mail"
+	"strings"
 	"time"
 
 	"confsite/backend/internal/adapters/http/dto"
@@ -39,22 +41,62 @@ func AdminListUsers(s *services.AdminService) gin.HandlerFunc {
 				consentDataTransfer = item.Profile.ConsentDataTransfer
 			}
 			out = append(out, gin.H{
-				"id": u.ID,
-				"email": u.Email,
+				"id":     u.ID,
+				"email":  u.Email,
 				"status": u.Status,
-				"roles": roles,
-				"surname": func() string { if item.Profile != nil { return item.Profile.Surname }; return "" }(),
-				"name": func() string { if item.Profile != nil { return item.Profile.Name }; return "" }(),
-				"patronymic": func() string { if item.Profile != nil { return item.Profile.Patronymic }; return "" }(),
+				"roles":  roles,
+				"surname": func() string {
+					if item.Profile != nil {
+						return item.Profile.Surname
+					}
+					return ""
+				}(),
+				"name": func() string {
+					if item.Profile != nil {
+						return item.Profile.Name
+					}
+					return ""
+				}(),
+				"patronymic": func() string {
+					if item.Profile != nil {
+						return item.Profile.Patronymic
+					}
+					return ""
+				}(),
 				"birthDate": birthDate,
-				"city": func() string { if item.Profile != nil { return item.Profile.City }; return "" }(),
+				"city": func() string {
+					if item.Profile != nil {
+						return item.Profile.City
+					}
+					return ""
+				}(),
 				"academicDegree": academicDegree,
-				"affiliation": func() string { if item.Profile != nil { return item.Profile.Affiliation }; return "" }(),
-				"position": func() string { if item.Profile != nil { return item.Profile.Position }; return "" }(),
-				"phone": func() string { if item.Profile != nil { return item.Profile.Phone }; return "" }(),
-				"postalAddress": func() string { if item.Profile != nil { return item.Profile.PostalAddress }; return "" }(),
+				"affiliation": func() string {
+					if item.Profile != nil {
+						return item.Profile.Affiliation
+					}
+					return ""
+				}(),
+				"position": func() string {
+					if item.Profile != nil {
+						return item.Profile.Position
+					}
+					return ""
+				}(),
+				"phone": func() string {
+					if item.Profile != nil {
+						return item.Profile.Phone
+					}
+					return ""
+				}(),
+				"postalAddress": func() string {
+					if item.Profile != nil {
+						return item.Profile.PostalAddress
+					}
+					return ""
+				}(),
 				"consentDataProcessing": consentDataProcessing,
-				"consentDataTransfer": consentDataTransfer,
+				"consentDataTransfer":   consentDataTransfer,
 			})
 		}
 		c.JSON(http.StatusOK, out)
@@ -73,7 +115,7 @@ func AdminSetUserStatus(s *services.AdminService) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"ok": true})
+		c.JSON(http.StatusOK, gin.H{"ok": true, "status": req.Status})
 	}
 }
 
@@ -218,7 +260,7 @@ func AdminUpdateTalk(tr ports.TalkRepo) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		
+
 		var sectionID *uuid.UUID
 		if req.SectionID != nil && *req.SectionID != "" {
 			uid, err := uuid.Parse(*req.SectionID)
@@ -228,7 +270,7 @@ func AdminUpdateTalk(tr ports.TalkRepo) gin.HandlerFunc {
 			}
 			sectionID = &uid
 		}
-		
+
 		var scheduleTime *time.Time
 		if req.ScheduleTime != nil && *req.ScheduleTime != "" {
 			// Try multiple formats for schedule time
@@ -237,7 +279,7 @@ func AdminUpdateTalk(tr ports.TalkRepo) gin.HandlerFunc {
 				"2006-01-02T15:04:05",       // ISO 8601 without timezone
 				"2006-01-02T15:04",          // Without seconds
 			}
-			
+
 			var t time.Time
 			var err error
 			for _, format := range formats {
@@ -246,16 +288,105 @@ func AdminUpdateTalk(tr ports.TalkRepo) gin.HandlerFunc {
 					break
 				}
 			}
-			
+
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid scheduleTime format: " + *req.ScheduleTime})
 				return
 			}
 			scheduleTime = &t
 		}
-		
+
 		if err := tr.UpdateSchedule(c, id, sectionID, scheduleTime); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "bad"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	}
+}
+
+func AdminSetTalkStatus(s *services.AdminService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := uuid.MustParse(c.Param("id"))
+		var req dto.SetTalkStatusRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if err := s.SetTalkStatus(c, id, domain.TalkStatus(req.Status)); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ok": true, "status": req.Status})
+	}
+}
+
+func AdminListSectionResponsibles(sr ports.SectionRepo) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sections, err := sr.List(c)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
+			return
+		}
+		items, err := sr.ListResponsibleEmails(c)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error"})
+			return
+		}
+		bySection := make(map[uuid.UUID][]string)
+		for _, item := range items {
+			bySection[item.SectionID] = append(bySection[item.SectionID], item.Email)
+		}
+
+		out := make([]gin.H, 0, len(sections))
+		for _, s := range sections {
+			emails := bySection[s.ID]
+			if emails == nil {
+				emails = []string{}
+			}
+			out = append(out, gin.H{
+				"sectionId":      s.ID,
+				"sectionTitleRu": s.TitleRu,
+				"sectionTitleEn": s.TitleEn,
+				"emails":         emails,
+			})
+		}
+		c.JSON(http.StatusOK, out)
+	}
+}
+
+func AdminSetSectionResponsibles(sr ports.SectionRepo) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sectionID := uuid.MustParse(c.Param("id"))
+		var req dto.SetSectionResponsiblesRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		uniq := make(map[string]struct{})
+		cleaned := make([]string, 0, len(req.Emails))
+		for _, raw := range req.Emails {
+			email := strings.ToLower(strings.TrimSpace(raw))
+			if email == "" {
+				continue
+			}
+			if _, err := mail.ParseAddress(email); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid email: " + raw})
+				return
+			}
+			if _, exists := uniq[email]; exists {
+				continue
+			}
+			uniq[email] = struct{}{}
+			cleaned = append(cleaned, email)
+		}
+		if len(cleaned) > 3 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "max 3 responsibles per section"})
+			return
+		}
+
+		if err := sr.ReplaceResponsibleEmails(c, sectionID, cleaned); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"ok": true})
@@ -284,13 +415,13 @@ func AdminGetUserConsents(cf ports.ConsentFileRepo) gin.HandlerFunc {
 		out := make([]gin.H, 0, len(files))
 		for _, f := range files {
 			out = append(out, gin.H{
-				"id": f.ID,
-				"userId": f.UserID,
+				"id":          f.ID,
+				"userId":      f.UserID,
 				"consentType": f.ConsentType,
-				"fileUrl": f.FileURL,
-				"fileSize": f.FileSize,
-				"mimeType": f.MimeType,
-				"uploadedAt": f.UploadedAt,
+				"fileUrl":     f.FileURL,
+				"fileSize":    f.FileSize,
+				"mimeType":    f.MimeType,
+				"uploadedAt":  f.UploadedAt,
 			})
 		}
 		c.JSON(http.StatusOK, out)

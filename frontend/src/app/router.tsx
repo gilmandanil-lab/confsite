@@ -19,6 +19,7 @@ import TalkEdit from "../features/participant/pages/TalkEdit";
 import AdminLayout from "../features/admin/pages/AdminLayout";
 import Users from "../features/admin/pages/Users";
 import Sections from "../features/admin/pages/Sections";
+import Responsibles from "../features/admin/pages/Responsibles";
 import NewsAdmin from "../features/admin/pages/News";
 import PagesAdmin from "../features/admin/pages/Pages";
 import AdminTalks from "../features/admin/pages/Talks";
@@ -92,6 +93,7 @@ export const router = createBrowserRouter([
           { index: true, element: <Users /> },
           { path: "users", element: <Users /> },
           { path: "sections", element: <Sections /> },
+          { path: "responsibles", element: <Responsibles /> },
           { path: "news", element: <NewsAdmin /> },
           { path: "pages", element: <PagesAdmin /> },
           { path: "talks", element: <AdminTalks /> },

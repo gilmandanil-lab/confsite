@@ -78,6 +78,7 @@ export interface TalkDto {
   affiliation: string;
   abstract: string;
   kind: "PLENARY" | "ORAL" | "POSTER";
+  status?: UserStatus;
   sectionId?: string | null;
   fileUrl?: string | null;
   authors: TalkAuthor[];
@@ -142,6 +143,7 @@ export interface AdminTalkRow {
   id: string;
   title: string;
   kind: string;
+  status: UserStatus;
   sectionId?: string | null;
   sectionTitleRu?: string | null;
   sectionTitleEn?: string | null;
@@ -152,6 +154,13 @@ export interface AdminTalkRow {
   authorsJSON: string;
   abstract: string;
   scheduleTime?: string | null;
+}
+
+export interface SectionResponsiblesRow {
+  sectionId: string;
+  sectionTitleRu: string;
+  sectionTitleEn: string;
+  emails: string[];
 }
 
 export interface AuditLogEntry {

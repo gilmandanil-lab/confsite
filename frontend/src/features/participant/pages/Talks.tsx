@@ -65,6 +65,9 @@ export default function Talks() {
                 <div className="pill bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-100">{t(`talks.kind.${talk.kind.toLowerCase()}`)}</div>
                 <div className="text-xs uppercase text-slate-500 dark:text-slate-300">{resolveSection(talk)}</div>
               </div>
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-300">
+                {t("status.label")}: {t(`status.${(talk.status || "WAITING").toLowerCase()}`)}
+              </div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{talk.title}</h3>
               <div className="text-sm text-slate-600 dark:text-slate-300">{talk.affiliation}</div>
               <div className="text-sm text-slate-500 dark:text-slate-400">

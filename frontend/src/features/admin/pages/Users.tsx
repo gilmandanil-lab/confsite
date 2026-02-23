@@ -3,8 +3,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { adminListUsers, adminSetUserStatus, adminGetUserConsents } from "../../../shared/api";
 import { apiPost } from "../../../shared/api/client";
-import { DataTable } from "../../../shared/ui/DataTable";
-import { AdminUserDto, ConsentFile } from "../../../shared/types";
+import { queryClient } from "../../../app/queryClient";
+import { AdminUserDto, UserStatus } from "../../../shared/types";
 
 export default function Users() {
   const { t } = useTranslation();
@@ -17,8 +17,25 @@ export default function Users() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) => adminSetUserStatus(id, status),
-    onSuccess: () => usersQuery.refetch(),
+    mutationFn: ({ id, status }: { id: string; status: UserStatus }) => adminSetUserStatus(id, status),
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["admin-users"] });
+      const previousUsers = queryClient.getQueryData<AdminUserDto[]>(["admin-users"]);
+      queryClient.setQueryData<AdminUserDto[]>(["admin-users"], (current = []) =>
+        current.map((user) => (user.id === id ? { ...user, status } : user)),
+      );
+      return { previousUsers };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousUsers) {
+        queryClient.setQueryData(["admin-users"], context.previousUsers);
+      }
+    },
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData<AdminUserDto[]>(["admin-users"], (current = []) =>
+        current.map((user) => (user.id === variables.id ? { ...user, status: data.status } : user)),
+      );
+    },
   });
 
   const passwordMutation = useMutation({
@@ -86,7 +103,7 @@ export default function Users() {
                       {t("admin.status")}
                     </div>
                     <div className="flex gap-2">
-                      {["WAITING", "APPROVED", "REJECTED"].map((st) => (
+                      {(["WAITING", "APPROVED", "REJECTED"] as UserStatus[]).map((st) => (
                         <button
                           key={st}
                           onClick={() => statusMutation.mutate({ id: user.id, status: st })}
