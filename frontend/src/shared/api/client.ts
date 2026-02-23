@@ -25,15 +25,17 @@ function apiOrigin() {
 export function normalizeFileURL(raw: string | null | undefined): string {
   if (!raw) return "";
   if (raw.startsWith("/files/")) {
-    return `${apiOrigin()}${raw}`;
+    return `${apiOrigin()}/api${raw}`;
   }
 
   try {
     const parsed = new URL(raw, window.location.origin);
     const host = parsed.hostname.toLowerCase();
-    const isLocalHost = host === "localhost" || host === "127.0.0.1";
-    if (isLocalHost && parsed.pathname.startsWith("/files/")) {
-      return `${apiOrigin()}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    const currentHost = window.location.hostname.toLowerCase();
+    const isRewriteHost =
+      host === "localhost" || host === "127.0.0.1" || host === currentHost;
+    if (isRewriteHost && parsed.pathname.startsWith("/files/")) {
+      return `${apiOrigin()}/api${parsed.pathname}${parsed.search}${parsed.hash}`;
     }
   } catch (_) {
     // leave as-is below

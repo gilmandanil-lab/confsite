@@ -206,6 +206,7 @@ func NewRouter(cfg config.Config, database *db.DB) *gin.Engine {
 	localDir := cfg.Storage.LocalDir
 	if localDir != "" {
 		r.Static("/files", localDir)
+		api.Static("/files", localDir)
 	}
 
 	return r
