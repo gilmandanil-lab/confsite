@@ -11,6 +11,37 @@ function withLang(path: string, lang: string) {
   return `${API_BASE}${path}${sep}lang=${lang}`;
 }
 
+function apiOrigin() {
+  if (API_BASE) {
+    try {
+      return new URL(API_BASE, window.location.origin).origin;
+    } catch (_) {
+      // fallback below
+    }
+  }
+  return window.location.origin;
+}
+
+export function normalizeFileURL(raw: string | null | undefined): string {
+  if (!raw) return "";
+  if (raw.startsWith("/files/")) {
+    return `${apiOrigin()}${raw}`;
+  }
+
+  try {
+    const parsed = new URL(raw, window.location.origin);
+    const host = parsed.hostname.toLowerCase();
+    const isLocalHost = host === "localhost" || host === "127.0.0.1";
+    if (isLocalHost && parsed.pathname.startsWith("/files/")) {
+      return `${apiOrigin()}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch (_) {
+    // leave as-is below
+  }
+
+  return raw;
+}
+
 async function refresh(lang: string) {
   if (!refreshPromise) {
     refreshPromise = fetch(withLang("/api/auth/refresh", lang), {
@@ -125,7 +156,7 @@ export function apiUpload<T>(path: string, form: FormData, method: "POST" | "PUT
 }
 
 export async function apiDownload(path: string, filename: string) {
-  const res = await apiRequest<Response>(path, { method: "GET" }, { raw: true });
+  const res = await apiRequest<Response>(normalizeFileURL(path), { method: "GET" }, { raw: true });
   const blob = await res.blob();
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement("a");

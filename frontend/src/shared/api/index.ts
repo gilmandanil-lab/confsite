@@ -1,4 +1,4 @@
-import { apiDelete, apiDownload, apiGet, apiPatch, apiPost, apiPut, apiUpload } from "./client";
+import { apiDelete, apiDownload, apiGet, apiPatch, apiPost, apiPut, apiUpload, normalizeFileURL } from "./client";
 import {
   AdminTalkRow,
   AdminUserDto,
@@ -81,7 +81,7 @@ export async function fetchPublicProgram(): Promise<AdminTalkRow[]> {
     sectionId: t.sectionId ?? t.SectionID ?? null,
     sectionTitleRu: t.sectionTitleRu ?? t.SectionTitleRu ?? null,
     sectionTitleEn: t.sectionTitleEn ?? t.SectionTitleEn ?? null,
-    fileUrl: t.fileUrl ?? t.FileURL ?? null,
+    fileUrl: normalizeFileURL(t.fileUrl ?? t.FileURL ?? null) || null,
     speakerFullName: t.speakerFullName ?? t.SpeakerFullName ?? "",
     speakerCity: t.speakerCity ?? t.SpeakerCity ?? "",
     speakerAffiliation: t.speakerAffiliation ?? t.SpeakerAffiliation ?? "",
@@ -138,7 +138,7 @@ export async function fetchMyTalks(): Promise<TalkDto[]> {
     kind: t.kind,
     status: t.status ?? t.Status ?? "WAITING",
     sectionId: t.sectionId ?? null,
-    fileUrl: t.fileUrl ?? null,
+    fileUrl: normalizeFileURL(t.fileUrl ?? null) || null,
     authors: typeof t.authors === "string" ? JSON.parse(t.authors) : t.authors,
   }));
 }
@@ -153,7 +153,7 @@ export async function fetchTalk(id: string): Promise<TalkDto> {
     kind: t.kind,
     status: t.status ?? t.Status ?? "WAITING",
     sectionId: t.sectionId ?? null,
-    fileUrl: t.fileUrl ?? null,
+    fileUrl: normalizeFileURL(t.fileUrl ?? null) || null,
     authors: typeof t.authors === "string" ? JSON.parse(t.authors) : t.authors,
   };
 }
@@ -244,7 +244,7 @@ export async function adminGetUserConsents(userId: string): Promise<ConsentFile[
     id: r.id ?? r.ID,
     userId: r.userId ?? r.UserID,
     consentType: r.consentType ?? r.ConsentType,
-    fileUrl: r.fileUrl ?? r.FileURL,
+    fileUrl: normalizeFileURL(r.fileUrl ?? r.FileURL),
     fileSize: r.fileSize ?? r.FileSize ?? undefined,
     mimeType: r.mimeType ?? r.MimeType ?? undefined,
     uploadedAt: r.uploadedAt ?? r.UploadedAt,
@@ -315,7 +315,7 @@ export async function adminListTalks(): Promise<AdminTalkRow[]> {
     sectionId: t.sectionId ?? t.SectionID ?? null,
     sectionTitleRu: t.sectionTitleRu ?? t.SectionTitleRu ?? null,
     sectionTitleEn: t.sectionTitleEn ?? t.SectionTitleEn ?? null,
-    fileUrl: t.fileUrl ?? t.FileURL ?? null,
+    fileUrl: normalizeFileURL(t.fileUrl ?? t.FileURL ?? null) || null,
     speakerFullName: t.speakerFullName ?? t.SpeakerFullName ?? "",
     speakerCity: t.speakerCity ?? t.SpeakerCity ?? "",
     speakerAffiliation: t.speakerAffiliation ?? t.SpeakerAffiliation ?? "",
@@ -402,7 +402,7 @@ function normalizeDocumentTemplate(raw: any): DocumentTemplate {
     name: raw.name ?? raw.Name,
     description: raw.description ?? raw.Description ?? undefined,
     documentType: raw.documentType ?? raw.DocumentType,
-    fileURL: raw.fileURL ?? raw.fileUrl ?? raw.FileURL,
+    fileURL: normalizeFileURL(raw.fileURL ?? raw.fileUrl ?? raw.FileURL),
     fileSize: raw.fileSize ?? raw.FileSize ?? undefined,
     mimeType: raw.mimeType ?? raw.MimeType ?? undefined,
     version: raw.version ?? raw.Version ?? 1,
